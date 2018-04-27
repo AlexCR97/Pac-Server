@@ -96,6 +96,53 @@ public class PacServer implements Serializable {
                         switch (query) {
                             
                             case M_Login.QUERY_LOGIN: {
+                                System.out.println("Case query login.");
+                                
+                                // Get Login IP and PORT
+                                hostIP = reader.readLine();
+                                hostPort = Integer.parseInt(reader.readLine());
+                                
+                                System.out.println("Inside LOGIN login ip:   " + hostIP);
+                                System.out.println("Inside LOGIN login port: " + hostPort);
+                                
+                                // Get user name and password
+                                String userName = reader.readLine();
+                                String password = reader.readLine();
+                                
+                                System.out.println("Inside LOGIN user name: " + userName);
+                                System.out.println("Inside LOGIN password:  " + password);
+                                
+                                // Create socket with object
+                                socket = new Socket(hostIP, hostPort);
+                                ObjectOutputStream oop = new ObjectOutputStream(socket.getOutputStream());
+                                
+                                // Check if user exists
+                                if (!PacServer.userExists(userName)) {
+                                    System.out.println("User login does not exist");
+                                    oop.writeObject(null);
+                                    oop.flush();
+                                    oop.close();
+                                    return;
+                                }
+                                
+                                // Check if passwords are equal
+                                if (!password.equals(PacServer.users.get(userName).password)) {
+                                    System.out.println("Password aren't equal");
+                                    oop.writeObject(null);
+                                    oop.flush();
+                                    oop.close();
+                                    return;
+                                }
+                                
+                                // Send user
+                                Profile user = PacServer.users.get(userName);
+                                oop.writeObject(user);
+                                oop.flush();
+                                oop.close();
+                                
+                                System.out.println("Sent user was:");
+                                System.out.println(user);
+                                
                                 break;
                             }
                             
@@ -123,6 +170,7 @@ public class PacServer implements Serializable {
                                                 M_Login.ANSWER_NO.toCharArray()
                                 );
                                 writer.flush();
+                                writer.close();
                                 
                                 break;
                             }
