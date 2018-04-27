@@ -1,0 +1,167 @@
+package ChatServer;
+
+import java.io.*;
+import java.net.*;
+import java.util.HashMap;
+
+import MVC_Login.M_Login;
+import UserData.Profile;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class PacServer implements Serializable {
+    
+    private static final HashMap<String, Profile> users = new HashMap<>();
+    public static String IP;
+    public static final int PORT = 7895;
+    
+    public PacServer() {
+        
+        // Server configuration
+        PacServer.IP = M_Login.getComputerIP();
+        System.out.println("Obtained server IP which is " + IP);
+        System.out.println("Obtained server IP which is " + PacServer.IP);
+        
+        // Debug
+        users.put(
+                "Alex",
+                new Profile(
+                        "12345",
+                        "Alex",
+                        null,
+                        "pass"
+                )
+        );
+        System.out.println("Succesfully create a user");
+        
+        // Start recieving queries
+        getQueries();
+        
+    }
+    
+    public static void updateIP() {
+        IP = M_Login.getComputerIP();
+    }
+    
+    public static void registerUser(Profile user) {
+        PacServer.users.put(user.userName, user);
+    }
+    
+    public static void updateUserIP(Profile user) {
+        user.updateIP();
+        PacServer.users.put(user.userName, user);
+    }    
+    
+    private void getQueries() {
+        
+        new Thread() {
+            
+            ServerSocket server = null;
+            Socket socket = null;
+            String query;
+            String hostIP;
+            int hostPort;
+            
+            @Override
+            public void run() {
+                
+                System.out.println("Inside thread of server");
+                
+                try {
+                    server = new ServerSocket(PacServer.PORT);
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+                
+                // Server loop
+                while (true) {
+                    
+                    System.out.println("Inside loop of server thread");
+                    System.out.println("PORT IS: " + PacServer.PORT);
+                    
+                    try {
+                        
+                        // Accept host
+                        socket = server.accept();
+                        
+                        System.out.println("Host accepted");
+                        
+                        // Read from socket
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        
+                        // Get query
+                        query = reader.readLine();
+                        System.out.println("Query is: " + query);
+                        
+                        switch (query) {
+                            
+                            case M_Login.QUERY_LOGIN: {
+                                break;
+                            }
+                            
+                            case M_Login.QUERY_USER_EXISTS: {
+                                // Get Login IP and PORT
+                                hostIP   = reader.readLine();
+                                hostPort = Integer.parseInt(reader.readLine());
+
+                                System.out.println("Login IP: " + hostIP);
+                                System.out.println("Login PORT: " + hostPort);
+                                
+                                // Get user name
+                                String userName = reader.readLine();
+                                socket.close();
+                                
+                                // Send confirmation to login
+                                socket = new Socket(hostIP, hostPort);
+                                
+                                PrintWriter writer = new PrintWriter(socket.getOutputStream());
+                                
+                                System.out.println("User " + userName + ((PacServer.userExists(userName))? " exists" : " does not exist"));
+                                writer.println(
+                                        PacServer.users.containsKey(userName)?
+                                                M_Login.ANSWER_YES.toCharArray() :
+                                                M_Login.ANSWER_NO.toCharArray()
+                                );
+                                writer.flush();
+                                
+                                break;
+                            }
+                            
+                            case M_Login.QUERY_REGUSTER_USER: {
+                                System.out.println("Register user case.");
+                                
+                                socket = server.accept();
+                                
+                                ObjectInputStream oip = new ObjectInputStream(socket.getInputStream());
+                                
+                                Profile user = (Profile) oip.readObject();
+                                
+                                PacServer.users.put(user.userName, user);
+                                
+                                System.out.println("Object wrote!");
+                                
+                                System.out.println(PacServer.users.get(user.userName));
+                                
+                                oip.close();
+                                
+                                break;
+                            }
+                            
+                        }
+                        
+                        socket.close();
+                        
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        }.start();
+        
+    }
+    
+    public static boolean userExists(String userName) {
+        return users.containsKey(userName);
+    }
+    
+}
